@@ -1,34 +1,26 @@
-# inventory_routes.py
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-
 from app.models.product import Product
 from app.models.stock_transaction import StockTransaction
-from app.models.user import User
+from app.decorators import role_required
 from app import db
 
 inventory_bp = Blueprint('inventory', __name__, url_prefix='/inventory')
 
-def has_role(allowed_roles):
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    return user and user.role in allowed_roles
-
-
+# STOCK IN (add stock)
 @inventory_bp.route('/stock-in', methods=['POST'])
 @jwt_required()
+@role_required(['admin', 'manager', 'staff'])
 def stock_in():
-    if not has_role(['admin', 'manager', 'staff']):
-        return jsonify({'error': 'Forbidden'}), 403
-    
     data = request.get_json()
+    
     product_id = data.get('product_id')
     quantity = data.get('quantity')
     reference = data.get('reference', '')
     
-    if not product_id or not quantity:
-        return jsonify({'error': 'product_id and quantity required'}), 400
-    if quantity <= 0:
+    if not product_id:
+        return jsonify({'error': 'product_id required'}), 400
+    if not quantity or quantity <= 0:
         return jsonify({'error': 'Quantity must be positive'}), 400
     
     product = Product.query.get_or_404(product_id)
@@ -51,26 +43,26 @@ def stock_in():
         'transaction_id': transaction.id
     }), 200
 
-
+# STOCK OUT (remove stock)
 @inventory_bp.route('/stock-out', methods=['POST'])
 @jwt_required()
+@role_required(['admin', 'manager', 'staff'])
 def stock_out():
-    if not has_role(['admin', 'manager', 'staff']):
-        return jsonify({'error': 'Forbidden'}), 403
-    
     data = request.get_json()
+    
     product_id = data.get('product_id')
     quantity = data.get('quantity')
     reference = data.get('reference', '')
     
-    if not product_id or not quantity:
-        return jsonify({'error': 'product_id and quantity required'}), 400
-    if quantity <= 0:
+    if not product_id:
+        return jsonify({'error': 'product_id required'}), 400
+    if not quantity or quantity <= 0:
         return jsonify({'error': 'Quantity must be positive'}), 400
     
     product = Product.query.get_or_404(product_id)
+    
     if product.stock_quantity < quantity:
-        return jsonify({'error': 'Insufficient stock'}), 400
+        return jsonify({'error': f'Insufficient stock. Only {product.stock_quantity} available'}), 400
     
     product.stock_quantity -= quantity
     
@@ -91,7 +83,7 @@ def stock_out():
         'transaction_id': transaction.id
     }), 200
 
-
+# TRANSACTION HISTORY
 @inventory_bp.route('/history', methods=['GET'])
 @jwt_required()
 def history():
