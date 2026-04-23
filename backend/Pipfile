@@ -16,6 +16,8 @@ pytest = "*"
 werkzeug = "*"
 python-dotenv = "*"
 flask-cors = "*"
+flask-marshmallow = "*"
+marshmallow-sqlalchemy = "*"
 
 [dev-packages]
 black = "*"
