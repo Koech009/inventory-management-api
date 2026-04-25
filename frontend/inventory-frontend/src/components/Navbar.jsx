@@ -1,60 +1,43 @@
-import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
+import { Link } from "react-router-dom";
 
 export default function Navbar() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { user, logout } = useAuth();
-
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
-
   return (
-    <nav className="sticky top-0 z-50 bg-gray-900 text-white shadow-md border-b border-gray-700">
-      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+    <nav className="sticky top-0 z-50 bg-[#0d1117] border-b border-white/[0.07]">
+      <div className="max-w-6xl mx-auto px-6 h-[62px] flex items-center justify-between">
         {/* Logo */}
-        <Link to="/" className="text-xl font-bold text-green-400">
-          InventoryAPI
+        <Link to="/" className="flex items-center gap-2.5 group">
+          <div className="w-[34px] h-[34px] bg-green-500 rounded-[9px] flex items-center justify-center flex-shrink-0 group-hover:bg-green-400 transition-colors">
+            <div className="w-[34px] h-[34px] bg-green-500 rounded-[9px] flex items-center justify-center flex-shrink-0 group-hover:bg-green-400 transition-colors">
+              <span className="text-emerald-950 font-black text-[11px] font-mono tracking-tight">
+                IVM
+              </span>
+            </div>
+          </div>
+          <div className="flex items-baseline gap-[2px]">
+            <span className="text-white font-extrabold text-[14.5px] tracking-[-0.4px] leading-none">
+              Inventory Management
+            </span>
+            <span className="text-green-400 font-extrabold text-[14.5px] tracking-[-0.4px] leading-none">
+              System
+            </span>
+          </div>
         </Link>
 
-        {/* Links */}
-        <ul className="flex items-center gap-3">
-          {!user ? (
-            <>
-              <li>
-                <Link
-                  to="/login"
-                  className={`text-sm font-medium px-3 py-1.5 rounded hover:bg-gray-700 transition-colors ${
-                    location.pathname === "/login"
-                      ? "text-green-400"
-                      : "text-gray-300"
-                  }`}
-                >
-                  Login
-                </Link>
-              </li>
-              <li>
-                <Link
-                  to="/register"
-                  className="text-sm font-semibold px-4 py-1.5 bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
-                >
-                  Register
-                </Link>
-              </li>
-            </>
-          ) : (
-            <li>
-              <button
-                onClick={handleLogout}
-                className="text-sm font-medium px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded transition-colors"
-              >
-                Logout
-              </button>
-            </li>
-          )}
-        </ul>
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          <Link
+            to="/login"
+            className="text-[13px] font-medium text-slate-300 hover:text-white px-4 py-[7px] rounded-lg border border-white/[0.12] hover:border-white/25 hover:bg-white/[0.05] transition-all"
+          >
+            Sign In
+          </Link>
+          <Link
+            to="/register"
+            className="text-[13px] font-bold px-4 py-[7px] bg-green-500 hover:bg-green-400 text-emerald-950 rounded-lg transition-colors tracking-[-0.2px]"
+          >
+            Get Started
+          </Link>
+        </div>
       </div>
     </nav>
   );
