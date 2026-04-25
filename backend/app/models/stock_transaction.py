@@ -1,44 +1,61 @@
-from . import db
+from app import db
 from sqlalchemy.orm import validates
-from datetime import datetime
- 
-VALID_TYPES = {"IN", "OUT"}
- 
- 
+from datetime import datetime, timezone
+from enum import Enum
+
+
+class MovementType(Enum):
+    # IN movements
+    PURCHASE = "purchase"
+    RESTOCK = "restock"
+    INITIAL_LOAD = "initial_load"
+
+    # OUT movements
+    SALE = "sale"
+    USAGE = "usage"
+    DISPOSAL = "disposal"
+
+
+IN_TYPES = {MovementType.PURCHASE,
+            MovementType.RESTOCK, MovementType.INITIAL_LOAD}
+
+
 class StockTransaction(db.Model):
     __tablename__ = "stock_transactions"
- 
-    id         = db.Column(db.Integer, primary_key=True)
-    # FK → products.id — every transaction must reference a product
-    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=False)
-    # FK → users.id — every transaction must be recorded by a user
-    user_id    = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    quantity   = db.Column(db.Integer, nullable=False)
-    # type is either "IN" (stock received) or "OUT" (stock dispatched)
-    type       = db.Column(db.String(3), nullable=False)
-    # reference is optional — holds a PO number, invoice ID, or note
-    reference  = db.Column(db.String(200))
-    # Timestamp auto-set on creation — never needs to be passed manually
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
- 
-    # Many transactions belong to one product (other side in Product.transactions)
+
+    id = db.Column(db.Integer, primary_key=True)
+    product_id = db.Column(db.Integer, db.ForeignKey(
+        "products.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey(
+        "users.id"), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    movement_type = db.Column(db.Enum(MovementType), nullable=False)
+    reference = db.Column(db.String(200))
+    notes = db.Column(db.Text)
+    created_at = db.Column(
+        db.DateTime, default=lambda: datetime.now(timezone.utc))
+
     product = db.relationship("Product", back_populates="transactions")
-    # Many transactions belong to one user (other side in User.transactions)
-    user    = db.relationship("User", back_populates="transactions")
- 
+    user = db.relationship("User", back_populates="transactions")
+
+    # --- Validations ---
     @validates("quantity")
     def validate_quantity(self, key, value):
         """Every transaction must move at least 1 unit."""
         if value <= 0:
             raise ValueError("Quantity must be greater than 0")
         return value
- 
-    @validates("type")
-    def validate_type(self, key, value):
-        """Only IN or OUT are valid transaction types."""
-        if value not in VALID_TYPES:
-            raise ValueError("Transaction type must be 'IN' or 'OUT'")
-        return value
- 
+
+    @property
+    def is_inbound(self):
+        """Returns True if this transaction adds stock."""
+        return self.movement_type in IN_TYPES
+
+    @property
+    def is_outbound(self):
+        """Returns True if this transaction removes stock."""
+        return self.movement_type not in IN_TYPES
+
     def __repr__(self):
-        return f"<StockTransaction {self.type} qty={self.quantity} product_id={self.product_id}>"
+        direction = "IN" if self.is_inbound else "OUT"
+        return f"<StockTransaction [{direction}] {self.movement_type.value} qty={self.quantity} product_id={self.product_id}>"
