@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import axios from "axios";
+import API from "../api/axios";
 import { useAuthContext } from "../contexts/AuthContext";
+import Navbar from "../components/Navbar.jsx";
+import Footer from "../components/Footer.jsx";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -26,7 +28,6 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
@@ -37,89 +38,72 @@ export default function Login() {
     setError("");
 
     try {
-      let user = null;
-      let token = null;
+      const res = await API.post("/auth/login", form);
+      const { user, token } = res.data;
+      login(user, token);
+      setForm({ username: "", password: "" });
 
-      // ✅ Try backend API first
-      try {
-        const res = await axios.post("http://localhost:5000/auth/login", form);
-        user = res.data.user;
-        token = res.data.token;
-      } catch (apiError) {
-        // ✅ Fallback to db.json mock if backend not available
-        const res = await axios.get("http://localhost:3001/users");
-        user = res.data.find(
-          (u) => u.username === form.username && u.password === form.password,
-        );
-        token = null; // JSON Server doesn’t issue tokens
+      switch (user.role) {
+        case "staff":
+          navigate("/dashboard/staff");
+          break;
+        case "manager":
+          navigate("/dashboard/manager");
+          break;
+        case "admin":
+          navigate("/dashboard/admin");
+          break;
+        default:
+          navigate("/");
       }
-
-      if (user) {
-        // ✅ Use AuthContext login
-        login(user, token);
-
-        // ✅ Clear form after successful login
-        setForm({ username: "", password: "" });
-
-        // Redirect based on role
-        switch (user.role) {
-          case "staff":
-            navigate("/dashboard/staff");
-            break;
-          case "manager":
-            navigate("/dashboard/manager");
-            break;
-          case "admin":
-            navigate("/dashboard/admin");
-            break;
-          default:
-            navigate("/");
-        }
-      } else {
-        setError("Invalid username or password.");
-      }
-    } catch {
-      setError("Login failed. Try again.");
+    } catch (err) {
+      setError(err.response?.data?.error || "Login failed. Try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center px-4">
-      <div className="bg-gray-100 rounded-2xl p-16 shadow-md w-full max-w-2xl">
-        <div className="bg-gray-800 rounded-lg shadow-2xl p-8 w-full">
+    <div className="min-h-screen bg-emerald-50 flex flex-col">
+      <Navbar />
+      <div className="flex-1 flex items-center justify-center px-4 py-16">
+        <div className="bg-white rounded-2xl shadow-md border border-emerald-100 w-full max-w-md p-8">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-white">Login</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Welcome back</h1>
             <p className="text-gray-400 text-sm mt-1">
               Sign in to your account
             </p>
           </div>
 
           {error && (
-            <div className="mb-4 px-4 py-3 bg-red-500/20 border border-red-500 rounded text-red-400 text-sm">
+            <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <form
+            onSubmit={handleSubmit}
+            autoComplete="off"
+            className="flex flex-col gap-4"
+          >
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Username
               </label>
               <input
                 type="text"
                 name="username"
                 placeholder="Enter your username"
+                autoComplete="new-password"
                 value={form.username}
                 onChange={handleChange}
                 required
-                className="w-full bg-gray-700 border border-gray-600 focus:border-green-500 focus:outline-none rounded px-3 py-2 text-sm text-white placeholder-gray-500 transition-colors"
+                className="w-full bg-slate-50 border border-slate-300 focus:border-emerald-500 focus:outline-none rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 transition-colors"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Password
               </label>
               <div className="relative">
@@ -127,15 +111,16 @@ export default function Login() {
                   type={showPassword ? "text" : "password"}
                   name="password"
                   placeholder="Enter your password"
+                  autoComplete="new-password"
                   value={form.password}
                   onChange={handleChange}
                   required
-                  className="w-full bg-gray-700 border border-gray-600 focus:border-green-500 focus:outline-none rounded px-3 py-2 pr-10 text-sm text-white placeholder-gray-500 transition-colors"
+                  className="w-full bg-slate-50 border border-slate-300 focus:border-emerald-500 focus:outline-none rounded-lg px-3 py-2 pr-10 text-sm text-gray-800 placeholder-gray-400 transition-colors"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200 text-sm"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-sm"
                 >
                   {showPassword ? "🙈" : "👁"}
                 </button>
@@ -145,20 +130,24 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2 mt-1 bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded transition-colors"
+              className="w-full py-2.5 mt-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors text-sm"
             >
-              {loading ? "Signing in..." : "Login"}
+              {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
 
           <p className="mt-5 text-center text-sm text-gray-400">
             Don't have an account?{" "}
-            <Link to="/register" className="text-green-400 hover:underline">
+            <Link
+              to="/register"
+              className="text-emerald-600 hover:underline font-medium"
+            >
               Register
             </Link>
           </p>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
