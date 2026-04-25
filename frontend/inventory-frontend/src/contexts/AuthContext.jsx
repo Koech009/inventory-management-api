@@ -6,6 +6,13 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
 
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    const storedToken = localStorage.getItem("token");
+    if (storedUser) setUser(JSON.parse(storedUser));
+    if (storedToken) setToken(storedToken);
+  }, []);
+
   const login = (userData, tokenValue = null) => {
     localStorage.setItem("user", JSON.stringify(userData));
     if (tokenValue) localStorage.setItem("token", tokenValue);
