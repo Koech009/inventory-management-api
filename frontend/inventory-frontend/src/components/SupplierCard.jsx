@@ -22,23 +22,19 @@ export default function SupplierCard({ supplier, onUpdated, onDeleted }) {
         if (value.trim().length > 100)
           return "Name must be under 100 characters.";
         return null;
-
       case "contact_email":
         if (!value.trim()) return "Email is required.";
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
           return "Enter a valid email address.";
         return null;
-
       case "phone":
         if (value && !/^[\d\s\+\-\(\)]{7,20}$/.test(value))
           return "Enter a valid phone number.";
         return null;
-
       case "address":
         if (value && value.length > 200)
           return "Address must be under 200 characters.";
         return null;
-
       default:
         return null;
     }
@@ -91,7 +87,12 @@ export default function SupplierCard({ supplier, onUpdated, onDeleted }) {
 
     setLoading(true);
     try {
-      await API.put(`/suppliers/${supplier.id}`, { ...supplier, ...form });
+      await API.put(`/suppliers/${supplier.id}`, {
+        name: form.name,
+        contact_email: form.contact_email,
+        phone: form.phone,
+        address: form.address,
+      });
       setEditing(false);
       onUpdated?.();
     } catch (err) {
@@ -122,7 +123,6 @@ export default function SupplierCard({ supplier, onUpdated, onDeleted }) {
   if (editing) {
     return (
       <div className="bg-white border border-green-200 rounded-xl shadow-sm overflow-hidden mb-4">
-        {/* Edit Header */}
         <div className="flex items-center justify-between px-6 py-3 bg-green-50 border-b border-green-100">
           <div className="flex items-center gap-2">
             <span className="text-base">✏️</span>
@@ -138,9 +138,7 @@ export default function SupplierCard({ supplier, onUpdated, onDeleted }) {
           </button>
         </div>
 
-        {/* Form Body */}
         <div className="px-6 py-5 flex flex-col gap-4">
-          {/* Name */}
           <div>
             <label className={labelClass}>
               Name <span className="text-red-400">*</span>
@@ -157,7 +155,6 @@ export default function SupplierCard({ supplier, onUpdated, onDeleted }) {
             <FieldError field="name" />
           </div>
 
-          {/* Email */}
           <div>
             <label className={labelClass}>
               Contact Email <span className="text-red-400">*</span>
@@ -174,7 +171,6 @@ export default function SupplierCard({ supplier, onUpdated, onDeleted }) {
             <FieldError field="contact_email" />
           </div>
 
-          {/* Phone + Address */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>
@@ -214,7 +210,6 @@ export default function SupplierCard({ supplier, onUpdated, onDeleted }) {
             <span className="text-red-400">*</span> Required fields
           </p>
 
-          {/* Save Button */}
           <button
             onClick={handleUpdate}
             disabled={loading}
@@ -230,27 +225,18 @@ export default function SupplierCard({ supplier, onUpdated, onDeleted }) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow mb-4">
       <div className="px-6 py-4 flex justify-between items-start">
-        {/* Supplier Info */}
         <div className="flex flex-col gap-1">
           <h4 className="text-sm font-semibold text-gray-800">
             {supplier.name}
           </h4>
-          <p className="text-xs text-gray-500 flex items-center gap-1">
-            📧 {supplier.contact_email}
-          </p>
+          <p className="text-xs text-gray-500">📧 {supplier.contact_email}</p>
           {supplier.phone && (
-            <p className="text-xs text-gray-500 flex items-center gap-1">
-              📞 {supplier.phone}
-            </p>
+            <p className="text-xs text-gray-500">📞 {supplier.phone}</p>
           )}
           {supplier.address && (
-            <p className="text-xs text-gray-500 flex items-center gap-1">
-              📍 {supplier.address}
-            </p>
+            <p className="text-xs text-gray-500">📍 {supplier.address}</p>
           )}
         </div>
-
-        {/* Actions */}
         <div className="flex items-center gap-2 whitespace-nowrap">
           <button
             onClick={() => setEditing(true)}
