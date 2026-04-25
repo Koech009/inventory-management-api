@@ -1,66 +1,8 @@
-// src/pages/Home.jsx
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import API from "../api/axios";
-
-function LandingNavbar() {
-  return (
-    <nav className="sticky top-0 z-50 bg-gray-900 border-b border-gray-700 shadow-md">
-      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-white text-xs font-black font-mono">
-            IV
-          </div>
-          <span className="text-white font-extrabold text-[15px] tracking-tight">
-            Inventory<span className="text-green-400">API</span>
-          </span>
-        </Link>
-        <div className="flex items-center gap-3">
-          <Link
-            to="/login"
-            className="text-sm font-medium text-gray-300 hover:text-white px-3 py-1.5 rounded hover:bg-gray-700 transition-colors"
-          >
-            Sign In
-          </Link>
-          <Link
-            to="/register"
-            className="text-sm font-semibold px-4 py-1.5 bg-green-500 hover:bg-green-400 text-white rounded transition-colors"
-          >
-            Get Started
-          </Link>
-        </div>
-      </div>
-    </nav>
-  );
-}
-
-function LandingFooter() {
-  return (
-    <footer className="bg-gray-950 text-gray-400 py-10 px-6">
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-green-500 rounded-md flex items-center justify-center text-white text-xs font-black font-mono">
-            IV
-          </div>
-          <span className="text-white font-bold text-sm">
-            Inventory<span className="text-green-400">API</span>
-          </span>
-        </div>
-        <p className="text-xs text-gray-500">
-          © {new Date().getFullYear()} InventoryAPI. All rights reserved.
-        </p>
-        <div className="flex items-center gap-4 text-sm">
-          <Link to="/login" className="hover:text-white transition-colors">
-            Login
-          </Link>
-          <Link to="/register" className="hover:text-white transition-colors">
-            Register
-          </Link>
-        </div>
-      </div>
-    </footer>
-  );
-}
+import axios from "axios";
+import Navbar from "../components/Navbar.jsx";
+import Footer from "../components/Footer.jsx";
 
 export default function Home() {
   const [stats, setStats] = useState([
@@ -72,18 +14,13 @@ export default function Home() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [prodRes, supRes, catRes] = await Promise.all([
-          API.get("/products"),
-          API.get("/suppliers"),
-          API.get("/categories"),
-        ]);
+        const res = await axios.get("/api/auth/stats");
         setStats([
-          { label: "Products tracked", value: prodRes.data.length },
-          { label: "Suppliers", value: supRes.data.length },
-          { label: "Categories", value: catRes.data.length },
+          { label: "Products tracked", value: res.data.products },
+          { label: "Suppliers", value: res.data.suppliers },
+          { label: "Categories", value: res.data.categories },
         ]);
-      } catch (err) {
-        console.error("Failed to fetch stats:", err);
+      } catch {
         setStats([
           { label: "Products tracked", value: "—" },
           { label: "Suppliers", value: "—" },
@@ -171,50 +108,44 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <LandingNavbar />
+      <Navbar />
 
       {/* ── Hero ── */}
-      <section className="bg-gray-900 py-28 px-6 text-center">
-        <span className="inline-block text-xs font-semibold bg-green-900 text-green-400 px-3 py-1 rounded-full mb-5 tracking-wide uppercase">
+      <section className="bg-emerald-50 py-28 px-6 text-center border-b border-emerald-100">
+        <span className="inline-block text-xs font-semibold bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full mb-5 tracking-wide uppercase">
           Role-Based Inventory System
         </span>
-        <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-5 leading-tight">
+        <h1 className="text-4xl md:text-5xl font-extrabold text-gray-800 mb-5 leading-tight">
           Manage your inventory <br />
-          <span className="text-green-400">the smart way</span>
+          <span className="text-emerald-600">the smart way</span>
         </h1>
-        <p className="text-gray-400 text-base max-w-xl mx-auto mb-8 leading-relaxed">
+        <p className="text-gray-500 text-base max-w-xl mx-auto mb-8 leading-relaxed">
           A clean, modular inventory management system with role-based access
           for Staff, Managers, and Admins.
         </p>
         <div className="flex items-center justify-center gap-3 flex-wrap">
           <Link
             to="/register"
-            className="px-6 py-2.5 bg-green-500 hover:bg-green-400 text-white font-semibold rounded-lg shadow transition-colors text-sm"
+            className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow transition-colors text-sm"
           >
-            Get Started — it's free
+            Get Started
           </Link>
           <Link
             to="/login"
-            className="px-6 py-2.5 border border-gray-600 hover:border-gray-400 text-gray-300 hover:text-white font-medium rounded-lg transition-colors text-sm"
+            className="px-6 py-2.5 border border-emerald-300 hover:border-emerald-500 text-emerald-700 font-medium rounded-lg transition-colors text-sm"
           >
             Sign In
           </Link>
         </div>
-
-        {/* Live Stats */}
         <div className="mt-16 flex items-center justify-center gap-12 flex-wrap">
           {stats.map((stat) => (
             <div key={stat.label} className="text-center">
               <p
-                className={`text-3xl font-extrabold ${
-                  stat.value === "..."
-                    ? "text-gray-600 animate-pulse"
-                    : "text-white"
-                }`}
+                className={`text-3xl font-extrabold ${stat.value === "..." ? "text-emerald-300 animate-pulse" : "text-gray-800"}`}
               >
                 {stat.value}
               </p>
-              <p className="text-xs text-gray-500 mt-1">{stat.label}</p>
+              <p className="text-xs text-gray-400 mt-1">{stat.label}</p>
             </div>
           ))}
         </div>
@@ -255,7 +186,7 @@ export default function Home() {
       </section>
 
       {/* ── Roles ── */}
-      <section className="py-20 px-6 bg-gray-100">
+      <section className="py-20 px-6 bg-slate-50">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-2xl font-bold text-gray-800">
@@ -299,20 +230,22 @@ export default function Home() {
       </section>
 
       {/* ── How it works ── */}
-      <section className="py-20 px-6 bg-gray-900">
+      <section className="py-20 px-6 bg-white">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-2xl font-bold text-white mb-3">How it works</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-3">
+            How it works
+          </h2>
           <p className="text-gray-400 text-sm mb-12">
             Get up and running in three simple steps.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {steps.map((item) => (
               <div key={item.step} className="flex flex-col items-center">
-                <div className="w-12 h-12 rounded-full bg-green-500 text-white font-black text-sm flex items-center justify-center mb-4">
+                <div className="w-12 h-12 rounded-full bg-emerald-600 text-white font-black text-sm flex items-center justify-center mb-4">
                   {item.step}
                 </div>
-                <h3 className="font-bold text-white mb-2">{item.title}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">
+                <h3 className="font-bold text-gray-800 mb-2">{item.title}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">
                   {item.desc}
                 </p>
               </div>
@@ -322,31 +255,31 @@ export default function Home() {
       </section>
 
       {/* ── CTA ── */}
-      <section className="py-24 px-6 text-center bg-green-600">
-        <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
+      <section className="py-24 px-6 text-center bg-emerald-50 border-t border-emerald-100">
+        <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-3">
           Ready to get started?
         </h2>
-        <p className="text-green-100 text-sm mb-8 max-w-md mx-auto">
+        <p className="text-gray-500 text-sm mb-8 max-w-md mx-auto">
           Create your account in seconds and start managing your inventory
           today.
         </p>
         <div className="flex items-center justify-center gap-3 flex-wrap">
           <Link
             to="/register"
-            className="inline-block px-7 py-3 bg-white hover:bg-gray-100 text-green-700 font-semibold rounded-lg shadow transition-colors text-sm"
+            className="inline-block px-7 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow transition-colors text-sm"
           >
             Create Free Account
           </Link>
           <Link
             to="/login"
-            className="inline-block px-7 py-3 border border-green-400 hover:border-white text-white font-medium rounded-lg transition-colors text-sm"
+            className="inline-block px-7 py-3 border border-emerald-300 hover:border-emerald-500 text-emerald-700 font-medium rounded-lg transition-colors text-sm"
           >
             Sign In
           </Link>
         </div>
       </section>
 
-      <LandingFooter />
+      <Footer />
     </div>
   );
 }
