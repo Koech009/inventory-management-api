@@ -24,8 +24,17 @@ export default function ProductForm({ onSuccess, product }) {
           API.get("/categories"),
           API.get("/suppliers"),
         ]);
-        setCategories(catRes.data);
-        setSuppliers(supRes.data);
+        // Flask may return { categories: [...] } or a plain array
+        setCategories(
+          Array.isArray(catRes.data)
+            ? catRes.data
+            : (catRes.data.categories ?? []),
+        );
+        setSuppliers(
+          Array.isArray(supRes.data)
+            ? supRes.data
+            : (supRes.data.suppliers ?? []),
+        );
       } catch (err) {
         console.error("Error fetching categories/suppliers:", err);
       }
@@ -59,12 +68,10 @@ export default function ProductForm({ onSuccess, product }) {
         if (!/^[a-zA-Z0-9\s\-_().]+$/.test(value))
           return "Name contains invalid characters.";
         return null;
-
       case "description":
         if (value && value.length > 300)
           return "Description must be under 300 characters.";
         return null;
-
       case "price":
         if (value === "" || value === null) return "Price is required.";
         if (isNaN(value)) return "Price must be a number.";
@@ -74,7 +81,6 @@ export default function ProductForm({ onSuccess, product }) {
         if (!/^\d+(\.\d{1,2})?$/.test(String(value)))
           return "Price can have at most 2 decimal places.";
         return null;
-
       case "quantity":
         if (value === "" || value === null) return "Quantity is required.";
         if (!Number.isInteger(Number(value)))
@@ -83,15 +89,12 @@ export default function ProductForm({ onSuccess, product }) {
         if (Number(value) > 1000000)
           return "Quantity seems unrealistically high.";
         return null;
-
       case "category_id":
         if (!value) return "Please select a category.";
         return null;
-
       case "supplier_id":
         if (!value) return "Please select a supplier.";
         return null;
-
       default:
         return null;
     }
@@ -109,7 +112,6 @@ export default function ProductForm({ onSuccess, product }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-    // Live re-validate if field was already touched
     if (touched[name]) {
       const err = validateField(name, value);
       setErrors((prev) => ({ ...prev, [name]: err || undefined }));
@@ -126,7 +128,6 @@ export default function ProductForm({ onSuccess, product }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Mark all fields touched so errors show everywhere
     const allTouched = Object.keys(form).reduce(
       (acc, key) => ({ ...acc, [key]: true }),
       {},
@@ -192,7 +193,6 @@ export default function ProductForm({ onSuccess, product }) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-      {/* Submit-level error */}
       {submitError && (
         <div className="px-4 py-3 bg-red-50 border border-red-300 rounded-lg text-red-500 text-sm flex items-center gap-2">
           <span>❌</span> {submitError}
@@ -235,9 +235,7 @@ export default function ProductForm({ onSuccess, product }) {
         <div className="flex items-center justify-between">
           <FieldError field="description" />
           <p
-            className={`text-xs mt-1 ml-auto ${
-              form.description.length > 280 ? "text-red-400" : "text-gray-400"
-            }`}
+            className={`text-xs mt-1 ml-auto ${form.description.length > 280 ? "text-red-400" : "text-gray-400"}`}
           >
             {form.description.length}/300
           </p>
@@ -330,12 +328,10 @@ export default function ProductForm({ onSuccess, product }) {
         </div>
       </div>
 
-      {/* Required note */}
       <p className="text-xs text-gray-400">
         <span className="text-red-400">*</span> Required fields
       </p>
 
-      {/* Submit */}
       <button
         type="submit"
         disabled={loading}
