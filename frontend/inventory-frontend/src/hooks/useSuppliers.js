@@ -5,11 +5,10 @@ export function useSuppliers() {
   const [suppliers, setSuppliers] = useState([]);
   const [error, setError] = useState("");
 
-  // Fetch all suppliers
   const fetchSuppliers = async () => {
     try {
-      const res = await API.get("/suppliers");
-      setSuppliers(res.data);
+      const res = await API.get("/suppliers?per_page=100");
+      setSuppliers(res.data.suppliers ?? []);
       setError("");
     } catch (err) {
       console.error("Error fetching suppliers:", err);
@@ -17,7 +16,6 @@ export function useSuppliers() {
     }
   };
 
-  // Add a new supplier
   const addSupplier = async (supplier) => {
     try {
       await API.post("/suppliers", supplier);
@@ -28,7 +26,6 @@ export function useSuppliers() {
     }
   };
 
-  // Update an existing supplier
   const updateSupplier = async (id, updatedSupplier) => {
     try {
       await API.put(`/suppliers/${id}`, updatedSupplier);
@@ -39,18 +36,16 @@ export function useSuppliers() {
     }
   };
 
-  // Delete a supplier
   const deleteSupplier = async (id) => {
     try {
       await API.delete(`/suppliers/${id}`);
-      setSuppliers(suppliers.filter((s) => s.id !== id));
+      setSuppliers((prev) => prev.filter((s) => s.id !== id));
     } catch (err) {
       console.error("Error deleting supplier:", err);
       setError("Failed to delete supplier.");
     }
   };
 
-  // Load suppliers on mount
   useEffect(() => {
     fetchSuppliers();
   }, []);

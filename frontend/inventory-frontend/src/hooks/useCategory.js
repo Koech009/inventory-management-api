@@ -5,11 +5,10 @@ export function useCategory() {
   const [categories, setCategories] = useState([]);
   const [error, setError] = useState("");
 
-  // Fetch all categories
   const fetchCategories = async () => {
     try {
-      const res = await API.get("/categories");
-      setCategories(res.data);
+      const res = await API.get("/categories?per_page=100");
+      setCategories(res.data.categories ?? []);
       setError("");
     } catch (err) {
       console.error("Error fetching categories:", err);
@@ -17,7 +16,6 @@ export function useCategory() {
     }
   };
 
-  // Add a new category
   const addCategory = async (category) => {
     try {
       await API.post("/categories", category);
@@ -28,7 +26,6 @@ export function useCategory() {
     }
   };
 
-  // Update an existing category
   const updateCategory = async (id, updatedCategory) => {
     try {
       await API.put(`/categories/${id}`, updatedCategory);
@@ -39,18 +36,16 @@ export function useCategory() {
     }
   };
 
-  // Delete a category
   const deleteCategory = async (id) => {
     try {
       await API.delete(`/categories/${id}`);
-      setCategories(categories.filter((c) => c.id !== id));
+      setCategories((prev) => prev.filter((c) => c.id !== id));
     } catch (err) {
       console.error("Error deleting category:", err);
       setError("Failed to delete category.");
     }
   };
 
-  // Load categories on mount
   useEffect(() => {
     fetchCategories();
   }, []);
