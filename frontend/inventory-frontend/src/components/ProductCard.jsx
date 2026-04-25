@@ -1,9 +1,16 @@
 import { useState } from "react";
 import API from "../api/axios";
 import ProductForm from "./ProductForm";
+import { useAuthContext } from "../contexts/AuthContext";
 
 export default function ProductCard({ product, onUpdated, onDeleted }) {
   const [editing, setEditing] = useState(false);
+  const { user } = useAuthContext();
+
+  const canEdit =
+    user?.role === "admin" ||
+    user?.role === "manager" ||
+    product.created_by === user?.id;
 
   const handleDelete = async () => {
     if (!window.confirm(`Delete "${product.name}"?`)) return;
@@ -83,18 +90,24 @@ export default function ProductCard({ product, onUpdated, onDeleted }) {
       </td>
       <td className="px-6 py-4">
         <div className="flex items-center gap-2 whitespace-nowrap">
-          <button
-            onClick={() => setEditing(true)}
-            className="text-xs px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-500 hover:text-white hover:border-blue-500 rounded-md transition-colors font-medium"
-          >
-            ✏️ Edit
-          </button>
-          <button
-            onClick={handleDelete}
-            className="text-xs px-3 py-1.5 bg-red-50 border border-red-200 text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500 rounded-md transition-colors font-medium"
-          >
-            🗑️ Delete
-          </button>
+          {canEdit ? (
+            <>
+              <button
+                onClick={() => setEditing(true)}
+                className="text-xs px-3 py-1.5 bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-500 hover:text-white hover:border-blue-500 rounded-md transition-colors font-medium"
+              >
+                ✏️ Edit
+              </button>
+              <button
+                onClick={handleDelete}
+                className="text-xs px-3 py-1.5 bg-red-50 border border-red-200 text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500 rounded-md transition-colors font-medium"
+              >
+                🗑️ Delete
+              </button>
+            </>
+          ) : (
+            <span className="text-xs text-gray-400 italic">View only</span>
+          )}
         </div>
       </td>
     </tr>
