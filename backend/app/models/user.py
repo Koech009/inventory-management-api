@@ -1,27 +1,33 @@
-from . import db
-from sqlalchemy.orm import validates
- 
-VALID_ROLES = {"admin", "manager", "staff"}
- 
- 
+from app import db, bcrypt
+
+
 class User(db.Model):
     __tablename__ = "users"
- 
-    id            = db.Column(db.Integer, primary_key=True)
-    username      = db.Column(db.String(100), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
-    # Role controls access levels — used by the RBAC decorator in routes
-    role          = db.Column(db.String(20), nullable=False, default="staff")
- 
-    # One user can record many stock transactions (other side in StockTransaction.user)
-    transactions = db.relationship("StockTransaction", back_populates="user")
- 
-    @validates("role")
-    def validate_role(self, key, value):
-        """Reject any role outside the allowed set before the row is saved."""
-        if value not in VALID_ROLES:
-            raise ValueError(f"Role must be one of: {VALID_ROLES}")
-        return value
- 
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+    # roles: admin, manager, staff
+    role = db.Column(db.String(20), default="staff")
+
+    # relationship to track inventory transactions
+    transactions = db.relationship(
+        "StockTransaction", back_populates="user", cascade="all, delete-orphan")
+
+    @property
+    def password(self):
+        raise AttributeError("Password is not readable")
+
+    @password.setter
+    def password(self, value):
+        """Hash and set the user password using bcrypt."""
+        self.password_hash = bcrypt.generate_password_hash(
+            value).decode("utf-8")
+
+    def check_password(self, value):
+        """Verify the user password using bcrypt."""
+        return bcrypt.check_password_hash(self.password_hash, value)
+
     def __repr__(self):
-        return f"<User {self.username!r} role={self.role!r}>"
+        return f"<User {self.username} {self.email} {self.role} >"
