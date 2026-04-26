@@ -4,7 +4,8 @@ from app.models.user import User
 from app.models.category import Category
 from app.models.product import Product
 from app.models.supplier import Supplier
-from app.models.stock_transaction import StockTransaction
+
+from app.models.stock_transaction import StockTransaction, MovementType
 
 
 @pytest.fixture(scope="session")
@@ -211,13 +212,13 @@ def test_inventory_routes(client, auth_token):
 
     resp = client.post("/api/inventory", json={
         "product_id": prod["id"],
-        "type": "in",
-        "movement_type": "restock",
+        "movement_type": "in",
         "quantity": 3
     }, headers=auth_token)
     assert resp.status_code == 201
     txn_id = resp.get_json()["id"]
-    assert resp.get_json()["type"] == "in"
+
+    assert resp.get_json()["movement_type"] == "in"
     assert resp.get_json()["quantity"] == 3
 
     resp = client.get("/api/inventory", headers=auth_token)
@@ -230,3 +231,19 @@ def test_inventory_routes(client, auth_token):
 
     resp = client.delete(f"/api/inventory/{txn_id}", headers=auth_token)
     assert resp.status_code == 204
+
+
+def test_stock_transaction_relationship(app):
+    with app.app_context():
+        u = User(username="staff", email="s@example.com")
+        u.password = "pw"
+        p = Product(name="Item", price=5, quantity=1)
+        t = StockTransaction(
+            product=p,
+            user=u,
+            movement_type=MovementType("in"),  # ✅ imported and used correctly
+            quantity=3,
+            stock_level=4,
+        )
+        assert t.quantity == 3
+        assert t.movement_type.value == "in"

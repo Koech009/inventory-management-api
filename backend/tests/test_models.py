@@ -4,7 +4,7 @@ from app.models.user import User
 from app.models.category import Category
 from app.models.product import Product
 from app.models.supplier import Supplier
-from app.models.stock_transaction import StockTransaction
+from app.models.stock_transaction import StockTransaction, MovementType
 
 
 def test_user_password_hash(app):
@@ -47,12 +47,13 @@ def test_stock_transaction_relationship(app):
         t = StockTransaction(
             product=p,
             user=u,
-            type="in",
+            movement_type=MovementType("in"),
             quantity=3,
-            movement_type="restock"
+
+            stock_level=4,
         )
         assert t.product == p
         assert t.user == u
-        assert t.type == "in"
+        assert t.movement_type == MovementType("in")
         assert t.quantity == 3
-        assert t.movement_type == "restock"
+        assert t.stock_level == 4
