@@ -3,10 +3,11 @@ import API from "../api/axios";
 
 export function useInventory() {
   const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Fetch all inventory transactions
   const fetchInventory = async () => {
+    setLoading(true);
     try {
       const res = await API.get("/inventory?per_page=100");
       setTransactions(res.data.transactions ?? []);
@@ -14,51 +15,54 @@ export function useInventory() {
     } catch (err) {
       console.error("Error fetching inventory:", err);
       setError("Failed to load inventory.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Add a new transaction
   const addTransaction = async (transaction) => {
     try {
       await API.post("/inventory", {
         product_id: transaction.product_id,
-        user_id: transaction.user_id,
-        type: transaction.type,
         movement_type: transaction.movement_type,
         quantity: transaction.quantity,
+        notes: transaction.notes ?? null,
       });
-      fetchInventory();
+      await fetchInventory();
     } catch (err) {
       console.error("Error adding transaction:", err);
       setError("Failed to add transaction.");
+      throw err;
     }
   };
 
-  // Update an existing transaction
   const updateTransaction = async (id, updatedTransaction) => {
     try {
       await API.put(`/inventory/${id}`, {
         product_id: updatedTransaction.product_id,
-        user_id: updatedTransaction.user_id,
-        type: updatedTransaction.type,
         movement_type: updatedTransaction.movement_type,
         quantity: updatedTransaction.quantity,
+        notes: updatedTransaction.notes ?? null,
       });
-      fetchInventory();
+      await fetchInventory();
     } catch (err) {
       console.error("Error updating transaction:", err);
       setError("Failed to update transaction.");
+      throw err;
     }
   };
 
-  // Delete a transaction
-  const deleteTransaction = async (id) => {
+  // soft delete — marks as deleted, reverses stock on backend
+  const softDeleteTransaction = async (id) => {
     try {
-      await API.delete(`/inventory/${id}`);
-      setTransactions((prev) => prev.filter((t) => t.id !== id));
+      await API.patch(`/inventory/${id}/delete`);
+      setTransactions((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, is_deleted: true } : t)),
+      );
     } catch (err) {
-      console.error("Error deleting transaction:", err);
-      setError("Failed to delete transaction.");
+      console.error("Error marking transaction as deleted:", err);
+      setError("Failed to mark transaction as deleted.");
+      throw err;
     }
   };
 
@@ -68,10 +72,11 @@ export function useInventory() {
 
   return {
     transactions,
+    loading,
     error,
     fetchInventory,
     addTransaction,
     updateTransaction,
-    deleteTransaction,
+    softDeleteTransaction,
   };
 }
