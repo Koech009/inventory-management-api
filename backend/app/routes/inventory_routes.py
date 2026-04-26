@@ -1,9 +1,10 @@
-from flask import Blueprint, request, jsonify
-from app.extensions import db
-from app.models.product import Product
-from app.models.stock_transaction import StockTransaction
-from app.schemas.stock_transaction_schema import StockTransactionSchema
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.schemas.stock_transaction_schema import StockTransactionSchema
+from app.models.stock_transaction import StockTransaction, MovementType
+from app.models.product import Product
+from app.extensions import db
+from flask import Blueprint, request, jsonify
+
 
 inventory_bp = Blueprint("inventory", __name__, url_prefix="/inventory")
 
@@ -11,129 +12,149 @@ transaction_schema = StockTransactionSchema()
 transactions_schema = StockTransactionSchema(many=True)
 
 
+# CREATE TRANSACTION
 @inventory_bp.route("", methods=["POST"])
 @jwt_required()
 def create_transaction():
-    """
-    Create a new inventory transaction.
-    Validates the request data, checks movement_type against transaction type,
-    adjusts the product's stock quantity accordingly, and saves the transaction.
-    Returns 400 if validation fails or stock is insufficient for 'out' transactions.
-    Returns the created transaction with a 201 status code.
-    """
-    data = request.get_json()
+    try:
+        data = request.get_json()
+        user_id = int(get_jwt_identity())
 
-    errors = transaction_schema.validate(data)
-    if errors:
-        print("Validation errors:", errors)
-        return jsonify(errors), 400
+        product_id = data.get("product_id")
+        movement_type = str(data.get("movement_type", "")).lower()
+        quantity = int(data.get("quantity", 0))
 
-    user_id = get_jwt_identity()
+        #  Validate product
+        product = db.session.get(Product, product_id)
+        if not product:
+            return jsonify({"error": "Product not found"}), 404
 
-    product = db.session.get(Product, data["product_id"])
-    if not product:
-        return jsonify({"error": "Product not found"}), 404
+        # Validate movement
+        if movement_type not in ["in", "out"]:
+            return jsonify({"error": "movement_type must be 'in' or 'out'"}), 400
 
-    txn_type = data["type"]
-    movement_type = data["movement_type"].lower()
-    quantity = data["quantity"]
+        if quantity <= 0:
+            return jsonify({"error": "Quantity must be greater than 0"}), 400
 
-    # Valid movement types per transaction direction
-    valid_in = ["purchase", "restock", "initial_load"]
-    valid_out = ["sale", "usage", "disposal"]
+        # Update stock
+        if movement_type == "in":
+            product.quantity += quantity
+        else:
+            if product.quantity < quantity:
+                return jsonify({
+                    "error": f"Not enough stock. Current: {product.quantity}, requested: {quantity}"
+                }), 400
+            product.quantity -= quantity
 
-    if txn_type == "in" and movement_type not in valid_in:
-        return jsonify({"error": "Invalid movement_type for 'in' transaction"}), 400
-    if txn_type == "out" and movement_type not in valid_out:
-        return jsonify({"error": "Invalid movement_type for 'out' transaction"}), 400
+        #  Create transaction WITH stock snapshot
+        transaction = StockTransaction(
+            product_id=product.id,
+            user_id=user_id,
+            movement_type=MovementType(movement_type),
+            quantity=quantity,
+            notes=data.get("notes"),
+            reference=data.get("reference"),
+            stock_level=product.quantity
+        )
 
-    if txn_type == "in":
-        product.quantity += quantity
-    elif txn_type == "out":
-        if product.quantity < quantity:
-            return jsonify({"error": "Not enough stock"}), 400
-        product.quantity -= quantity
+        db.session.add(transaction)
+        db.session.commit()
 
-    transaction = StockTransaction(
-        product_id=product.id,
-        user_id=user_id,
-        type=txn_type,
-        movement_type=movement_type,
-        quantity=quantity,
-    )
-    db.session.add(transaction)
-    db.session.commit()
+        return jsonify(transaction_schema.dump(transaction)), 201
 
-    return jsonify(transaction_schema.dump(transaction)), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "error": "Failed to create transaction",
+            "details": str(e)
+        }), 500
 
 
+# GET ALL TRANSACTIONS
 @inventory_bp.route("", methods=["GET"])
 @jwt_required()
 def get_transactions():
-    """
-    Retrieve a paginated list of all inventory transactions.
-    Ordered by most recent first. Supports `page` and `per_page` query params
-    (max 100 per page). Returns transactions with pagination metadata.
-    """
-    page = request.args.get("page", 1, type=int)
-    per_page = min(request.args.get("per_page", 100, type=int), 100)
+    try:
+        page = request.args.get("page", 1, type=int)
+        per_page = min(request.args.get("per_page", 100, type=int), 100)
 
-    pagination = StockTransaction.query.order_by(
-        StockTransaction.id.desc()
-    ).paginate(page=page, per_page=per_page, error_out=False)
+        pagination = StockTransaction.query.order_by(
+            StockTransaction.created_at.desc()
+        ).paginate(page=page, per_page=per_page, error_out=False)
 
-    return jsonify({
-        "transactions": transactions_schema.dump(pagination.items),
-        "meta": {
-            "page": pagination.page,
-            "per_page": pagination.per_page,
-            "total_items": pagination.total,
-            "total_pages": pagination.pages,
-            "has_next": pagination.has_next,
-            "has_prev": pagination.has_prev,
-            "next_page": pagination.next_num,
-            "prev_page": pagination.prev_num,
-        }
-    }), 200
+        return jsonify({
+            "transactions": transactions_schema.dump(pagination.items),
+            "meta": {
+                "page": pagination.page,
+                "per_page": pagination.per_page,
+                "total_items": pagination.total,
+                "total_pages": pagination.pages,
+                "has_next": pagination.has_next,
+                "has_prev": pagination.has_prev,
+                "next_page": pagination.next_num,
+                "prev_page": pagination.prev_num,
+            }
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "error": "Failed to fetch transactions",
+            "details": str(e)
+        }), 500
 
 
+#  GET SINGLE TRANSACTION
 @inventory_bp.route("/<int:id>", methods=["GET"])
 @jwt_required()
 def get_transaction(id):
-    """
-    Retrieve a single inventory transaction by its ID.
-    Returns 404 if the transaction does not exist.
-    """
-    transaction = db.session.get(StockTransaction, id)
-    if not transaction:
-        return jsonify({"error": "Transaction not found"}), 404
-    return jsonify(transaction_schema.dump(transaction)), 200
+    try:
+        transaction = db.session.get(StockTransaction, id)
+        if not transaction:
+            return jsonify({"error": "Transaction not found"}), 404
+
+        return jsonify(transaction_schema.dump(transaction)), 200
+
+    except Exception as e:
+        return jsonify({
+            "error": "Failed to fetch transaction",
+            "details": str(e)
+        }), 500
 
 
-@inventory_bp.route("/<int:id>", methods=["DELETE"])
+#  SOFT DELETE TRANSACTION
+@inventory_bp.route("/<int:id>/delete", methods=["PATCH"])
 @jwt_required()
-def delete_transaction(id):
-    """
-    Delete an inventory transaction by its ID and reverse its stock effect.
-    If the transaction was 'in', stock is decremented.
-    If the transaction was 'out', stock is restored.
-    Returns 404 if the transaction or its product does not exist.
-    Returns 204 No Content on successful deletion.
-    """
-    transaction = db.session.get(StockTransaction, id)
-    if not transaction:
-        return jsonify({"error": "Transaction not found"}), 404
+def soft_delete_transaction(id):
+    try:
+        transaction = db.session.get(StockTransaction, id)
+        if not transaction:
+            return jsonify({"error": "Transaction not found"}), 404
 
-    product = db.session.get(Product, transaction.product_id)
-    if not product:
-        return jsonify({"error": "Product not found"}), 404
+        if transaction.is_deleted:
+            return jsonify({"error": "Transaction already deleted"}), 400
 
-    # Reverse the stock effect of this transaction
-    if transaction.type == "in":
-        product.quantity -= transaction.quantity
-    elif transaction.type == "out":
-        product.quantity += transaction.quantity
+        product = db.session.get(Product, transaction.product_id)
+        if not product:
+            return jsonify({"error": "Product not found"}), 404
 
-    db.session.delete(transaction)
-    db.session.commit()
-    return "", 204
+        # Reverse stock safely
+        if transaction.movement_type == MovementType.IN:
+            if product.quantity < transaction.quantity:
+                return jsonify({
+                    "error": "Cannot reverse transaction, stock too low"
+                }), 400
+            product.quantity -= transaction.quantity
+        else:
+            product.quantity += transaction.quantity
+
+        transaction.soft_delete()
+        db.session.commit()
+
+        return jsonify({"message": "Transaction deleted successfully"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "error": "Failed to delete transaction",
+            "details": str(e)
+        }), 500
