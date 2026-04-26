@@ -1,11 +1,13 @@
+import random
+from datetime import datetime
+from faker import Faker
+
 from app import create_app, db, bcrypt
 from app.models.user import User
 from app.models.category import Category
 from app.models.supplier import Supplier
 from app.models.product import Product
-from app.models.stock_transaction import StockTransaction
-from faker import Faker
-import random
+from app.models.stock_transaction import StockTransaction, MovementType
 
 fake = Faker()
 app = create_app()
@@ -25,14 +27,14 @@ def seed_users():
     db.session.add(admin)
     users.append(admin)
 
-    # Fake staff/admin users
+    # Staff/manager users
     for _ in range(5):
         user = User(
             username=fake.unique.user_name(),
             email=fake.unique.email(),
             password=bcrypt.generate_password_hash(
                 "password123").decode("utf-8"),
-            role=random.choice(["staff", "staff", "admin"])
+            role=random.choice(["staff", "manager"])
         )
         db.session.add(user)
         users.append(user)
@@ -100,23 +102,33 @@ def seed_db():
         # -------------------
         # STOCK TRANSACTIONS
         # -------------------
-        movement_types = ["purchase", "restock",
-                          "initial_load", "sale", "usage", "disposal"]
-
+        print("Seeding transactions...")
         for _ in range(20):
+            product = random.choice(products)
+            user = random.choice(users)
+            movement = random.choice([MovementType.IN, MovementType.OUT])
+            qty = random.randint(1, 20)
+
+            # Update product quantity and compute stock level
+            if movement == MovementType.IN:
+                product.quantity += qty
+            else:
+                product.quantity = max(product.quantity - qty, 0)
+
             transaction = StockTransaction(
-                product_id=random.choice(products).id,
-                user_id=random.choice(users).id,
-                #  lowercase to match schema
-                type=random.choice(["in", "out"]),
-                quantity=random.randint(1, 20),
-                movement_type=random.choice(movement_types)
-                # date will be auto-set by model default
+                product_id=product.id,
+                user_id=user.id,
+                movement_type=movement,
+                quantity=qty,
+                stock_level=product.quantity,
+                notes=fake.sentence() if random.random() > 0.5 else None,
+                is_deleted=False,
+                created_at=datetime.utcnow()
             )
             db.session.add(transaction)
-        db.session.commit()
 
-        print("Seeding completed successfully ")
+        db.session.commit()
+        print("Seeding completed successfully!")
 
 
 if __name__ == "__main__":
