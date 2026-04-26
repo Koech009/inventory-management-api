@@ -14,34 +14,37 @@ const managerLinks = [
 export default function ManagerInventory() {
   const {
     transactions,
+    loading,
+    error,
     fetchInventory,
     addTransaction,
     updateTransaction,
-    deleteTransaction,
   } = useInventory();
   const { products, fetchProducts } = useProducts();
+
+  const handleUpdated = () => {
+    fetchInventory();
+    fetchProducts();
+  };
 
   return (
     <DashboardLayout navLinks={managerLinks}>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Inventory Tracking</h1>
         <p className="text-gray-400 text-sm mt-1">
-          {transactions.length} transactions
+          {loading ? "Loading..." : `${transactions.length} transactions`}
         </p>
+        {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
       </div>
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-        <InventoryTracking
-          transactions={transactions}
-          products={products}
-          onUpdated={() => {
-            fetchInventory();
-            fetchProducts();
-          }}
-          addTransaction={addTransaction}
-          updateTransaction={updateTransaction}
-          deleteTransaction={deleteTransaction}
-        />
-      </div>
+
+      <InventoryTracking
+        transactions={transactions}
+        products={products}
+        onUpdated={handleUpdated}
+        addTransaction={addTransaction}
+        updateTransaction={updateTransaction}
+        allowedTypes={["in", "out"]}
+      />
     </DashboardLayout>
   );
 }
