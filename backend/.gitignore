@@ -17,6 +17,9 @@ Pipfile.lock
 # Migrations directories
 migrations/
 
+# Instance directory (local configs, SQLite DBs)
+instance/
+
 # Logs
 *.log
 
