@@ -16,6 +16,7 @@ export default function ProductForm({ onSuccess, product }) {
   const [touched, setTouched] = useState({});
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [submitSuccess, setSubmitSuccess] = useState(""); // ✅ added
 
   useEffect(() => {
     const fetchData = async () => {
@@ -24,7 +25,6 @@ export default function ProductForm({ onSuccess, product }) {
           API.get("/categories"),
           API.get("/suppliers"),
         ]);
-        // Flask may return { categories: [...] } or a plain array
         setCategories(
           Array.isArray(catRes.data)
             ? catRes.data
@@ -54,6 +54,7 @@ export default function ProductForm({ onSuccess, product }) {
       });
       setErrors({});
       setTouched({});
+      setSubmitSuccess(""); // ✅ clear on product change
     }
   }, [product?.id]);
 
@@ -117,6 +118,7 @@ export default function ProductForm({ onSuccess, product }) {
       setErrors((prev) => ({ ...prev, [name]: err || undefined }));
     }
     setSubmitError("");
+    setSubmitSuccess(""); // ✅ clear success on new input
   };
 
   const handleBlur = (e) => {
@@ -140,11 +142,15 @@ export default function ProductForm({ onSuccess, product }) {
 
     setLoading(true);
     setSubmitError("");
+    setSubmitSuccess("");
+
     try {
       if (product) {
         await API.put(`/products/${product.id}`, form);
+        setSubmitSuccess("Product updated successfully!");
       } else {
         await API.post("/products", form);
+        setSubmitSuccess("Product added successfully!");
         setForm({
           name: "",
           description: "",
@@ -156,9 +162,14 @@ export default function ProductForm({ onSuccess, product }) {
         setTouched({});
         setErrors({});
       }
+      //  auto-clear success after 4 seconds
+      setTimeout(() => setSubmitSuccess(""), 4000);
       onSuccess?.();
     } catch (err) {
-      setSubmitError("Error saving product. Please try again.");
+      //  show backend error message if available
+      const backendError =
+        err.response?.data?.error || err.response?.data?.message;
+      setSubmitError(backendError || "Error saving product. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -193,6 +204,14 @@ export default function ProductForm({ onSuccess, product }) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+      {/*  Success banner */}
+      {submitSuccess && (
+        <div className="px-4 py-3 bg-green-50 border border-green-300 rounded-lg text-green-700 text-sm flex items-center gap-2">
+          <span>✅</span> {submitSuccess}
+        </div>
+      )}
+
+      {/*  Error banner */}
       {submitError && (
         <div className="px-4 py-3 bg-red-50 border border-red-300 rounded-lg text-red-500 text-sm flex items-center gap-2">
           <span>❌</span> {submitError}
